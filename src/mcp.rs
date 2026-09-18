@@ -1,3 +1,32 @@
+
+pub fn get_tools_definition() -> Value {
+    json!([
+        {
+            "name": "debug_scan",
+            "description": "Perform complete diagnostic scan of services, workspace compilation, and vault security invariants.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "debug_check_services",
+            "description": "Probe status and latencies of SparkOS native services (Cortex, Cockpit, Encoder, LLM Seat, Conduit).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "debug_audit_security",
+            "description": "Audit zero-disk-secrets invariant and scan for unmasked API key signatures.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    ])
+}
 use reqwest::Client;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -141,4 +170,21 @@ pub async fn run_mcp_server(client: Client, workspace_dir: String) -> Result<(),
     }
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mcp_tools_definition() {
+        let tools = get_tools_definition();
+        let list = tools.as_array().expect("array of tools");
+        assert_eq!(list.len(), 3);
+        let names: Vec<&str> = list.iter().filter_map(|t| t.get("name").and_then(Value::as_str)).collect();
+        assert!(names.contains(&"debug_scan"));
+        assert!(names.contains(&"debug_check_services"));
+        assert!(names.contains(&"debug_audit_security"));
+    }
 }
