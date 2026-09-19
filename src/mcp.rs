@@ -1,4 +1,5 @@
 
+#[allow(dead_code)]
 pub fn get_tools_definition() -> Value {
     json!([
         {
