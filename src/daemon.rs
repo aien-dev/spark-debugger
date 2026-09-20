@@ -11,7 +11,10 @@ pub async fn run_watchdog_daemon(
     workspace_dir: String,
     interval_secs: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("[Watchdog] Starting spark-debugger watchdog daemon (interval: {}s)...", interval_secs);
+    info!(
+        "[Watchdog] Starting spark-debugger watchdog daemon (interval: {}s)...",
+        interval_secs
+    );
 
     let mut consecutive_failures = 0;
 
@@ -30,11 +33,17 @@ pub async fn run_watchdog_daemon(
                 issues.push("Vault or unslop invariants violated".to_string());
             }
             if !report.build.passed {
-                issues.push(format!("Workspace build failed with {} errors", report.build.errors.len()));
+                issues.push(format!(
+                    "Workspace build failed with {} errors",
+                    report.build.errors.len()
+                ));
             }
 
             let summary = issues.join("; ");
-            warn!("[Watchdog] Audit failed (attempt {}): {}", consecutive_failures, summary);
+            warn!(
+                "[Watchdog] Audit failed (attempt {}): {}",
+                consecutive_failures, summary
+            );
 
             if consecutive_failures == 1 || consecutive_failures % 5 == 0 {
                 report_incident(&client, &report, &summary).await;

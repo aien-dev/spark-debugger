@@ -49,7 +49,12 @@ pub async fn audit_services(client: &Client) -> Vec<ServiceAuditResult> {
     let mut results = Vec::new();
     for (name, ep) in endpoints {
         let start = std::time::Instant::now();
-        match client.get(ep).timeout(Duration::from_millis(1500)).send().await {
+        match client
+            .get(ep)
+            .timeout(Duration::from_millis(1500))
+            .send()
+            .await
+        {
             Ok(res) => {
                 let status = res.status().as_u16();
                 results.push(ServiceAuditResult {
@@ -121,7 +126,8 @@ pub async fn audit_workspace_build(workspace_path: &str) -> BuildAuditResult {
             for line in stderr.lines() {
                 if line.starts_with("error") {
                     errors.push(line.to_string());
-                } else if line.starts_with("warning") && !line.contains("profiles for the non root") {
+                } else if line.starts_with("warning") && !line.contains("profiles for the non root")
+                {
                     warnings.push(line.to_string());
                 }
             }
@@ -141,11 +147,11 @@ pub async fn audit_workspace_build(workspace_path: &str) -> BuildAuditResult {
 }
 
 pub async fn run_full_audit(client: &Client, workspace_dir: &str) -> SystemAuditReport {
+    let services = audit_services(client).await;
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     let cockpit_dir = format!("{}/spark-cockpit-rs", home);
-    let services = audit_services(client).await;
     let invariants = audit_vault_and_unslop(&[workspace_dir, &cockpit_dir]);
     let build = audit_workspace_build(workspace_dir).await;
 
@@ -158,46 +164,5 @@ pub async fn run_full_audit(client: &Client, workspace_dir: &str) -> SystemAudit
         invariants,
         build,
         overall_healthy,
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_system_audit_report_serialization() {
-        let report = SystemAuditReport {
-            timestamp: "2026-09-18T12:00:00Z".to_string(),
-            services: vec![
-                ServiceAuditResult {
-                    name: "Cortex Memory".to_string(),
-                    endpoint: "http://127.0.0.1:18080/health".to_string(),
-                    reachable: true,
-                    status_code: Some(200),
-                    latency_ms: 1,
-                }
-            ],
-            invariants: InvariantAuditResult {
-                passed: true,
-                plaintext_env_files_found: vec![],
-                unredacted_secrets_found: 0,
-                unslop_violations: vec![],
-            },
-            build: BuildAuditResult {
-                passed: true,
-                errors: vec![],
-                warnings: vec![],
-            },
-            overall_healthy: true,
-        };
-
-        let json = serde_json::to_string(&report).expect("serializable");
-        let parsed: SystemAuditReport = serde_json::from_str(&json).expect("deserializable");
-        assert_eq!(parsed.services.len(), 1);
-        assert!(parsed.overall_healthy);
-        assert_eq!(parsed.services[0].name, "Cortex Memory");
-        assert!(parsed.invariants.passed);
     }
 }

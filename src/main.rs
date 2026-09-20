@@ -1,10 +1,3 @@
-fn default_workspace_dir() -> String {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    format!("{}/workspace/aien-sovereign-core", home)
-}
-
 use clap::{Parser, Subcommand};
 use reqwest::Client;
 use std::time::Duration;
@@ -20,9 +13,12 @@ use daemon::run_watchdog_daemon;
 use mcp::run_mcp_server;
 
 #[derive(Parser, Debug)]
-#[command(name = "spark-debugger", about = "Autonomous Continuous Watchdog and MCP Debugger for SparkOS")]
+#[command(
+    name = "spark-debugger",
+    about = "Autonomous Continuous Watchdog and MCP Debugger for SparkOS"
+)]
 struct Cli {
-    #[arg(long, default_value_t = default_workspace_dir())]
+    #[arg(long, default_value_t = default_debugger_workspace())]
     workspace: String,
 
     #[arg(long)]
@@ -45,6 +41,13 @@ enum Commands {
     Mcp,
 }
 
+fn default_debugger_workspace() -> String {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+    format!("{}/workspace/aien-sovereign-core", home)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
@@ -64,7 +67,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -77,37 +82,80 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== SparkOS Sovereign Watchdog: System Diagnostic Audit ===");
     let report = run_full_audit(&client, &cli.workspace).await;
 
-    println!("{:<22} {:<38} {:<10} {:<10}", "SERVICE", "ENDPOINT", "STATUS", "LATENCY");
+    println!(
+        "{:<22} {:<38} {:<10} {:<10}",
+        "SERVICE", "ENDPOINT", "STATUS", "LATENCY"
+    );
     println!("{}", "-".repeat(82));
     for s in &report.services {
         let status_str = if s.reachable { "ONLINE" } else { "OFFLINE" };
-        let code_str = s.status_code.map(|c| c.to_string()).unwrap_or_else(|| "-".into());
-        println!("{:<22} {:<38} {:<10} {:<10}",
-            s.name, s.endpoint, format!("{} ({})", status_str, code_str), format!("{}ms", s.latency_ms));
+        let code_str = s
+            .status_code
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "-".into());
+        println!(
+            "{:<22} {:<38} {:<10} {:<10}",
+            s.name,
+            s.endpoint,
+            format!("{} ({})", status_str, code_str),
+            format!("{}ms", s.latency_ms)
+        );
     }
     println!("{}", "-".repeat(82));
 
-    println!("
---- Invariant Checks ---");
-    println!("TPM Vault Clean (Zero .env files): {}", if report.invariants.plaintext_env_files_found.is_empty() { "PASSED" } else { "FAILED" });
+    println!(
+        "
+--- Invariant Checks ---"
+    );
+    println!(
+        "TPM Vault Clean (Zero .env files): {}",
+        if report.invariants.plaintext_env_files_found.is_empty() {
+            "PASSED"
+        } else {
+            "FAILED"
+        }
+    );
     if !report.invariants.plaintext_env_files_found.is_empty() {
         for f in &report.invariants.plaintext_env_files_found {
             println!("  Leaked file: {}", f);
         }
     }
-    println!("Unslop Standard (Zero em/en dashes): {}", if report.invariants.unslop_violations.is_empty() { "PASSED" } else { "FAILED" });
+    println!(
+        "Unslop Standard (Zero em/en dashes): {}",
+        if report.invariants.unslop_violations.is_empty() {
+            "PASSED"
+        } else {
+            "FAILED"
+        }
+    );
 
-    println!("
---- Workspace Compile Check ---");
-    println!("Cargo Check: {}", if report.build.passed { "PASSED" } else { "FAILED" });
+    println!(
+        "
+--- Workspace Compile Check ---"
+    );
+    println!(
+        "Cargo Check: {}",
+        if report.build.passed {
+            "PASSED"
+        } else {
+            "FAILED"
+        }
+    );
     if !report.build.errors.is_empty() {
         for e in &report.build.errors {
             println!("  {}", e);
         }
     }
 
-    println!("
-Overall Diagnostic Status: {}", if report.overall_healthy { "ALL SYSTEMS GREEN" } else { "ATTENTION REQUIRED" });
+    println!(
+        "
+Overall Diagnostic Status: {}",
+        if report.overall_healthy {
+            "ALL SYSTEMS GREEN"
+        } else {
+            "ATTENTION REQUIRED"
+        }
+    );
     println!("");
 
     Ok(())
