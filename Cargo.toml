@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Drake Stapleton <aien@aienos.com>"]
 description = "Autonomous continuous watchdog, diagnostic debugger, and MCP server"
-license = "SRCL-1.0"
+license = "Apache-2.0 WITH LLVM-exception"
 
 [dependencies]
 tokio = { version = "1.37", features = ["full"] }
